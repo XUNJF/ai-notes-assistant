@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+langgraph
+langchain-core
+langchain-deepseek
+langgraph-checkpoint-sqlite
+requests
+chromadb
