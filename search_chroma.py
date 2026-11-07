@@ -1,7 +1,22 @@
 import requests
 import chromadb
+import os
 
-sf_key = open("key_sf.txt", encoding="utf-8").read().strip()
+def _sf_key():
+    v = os.environ.get("SILICONFLOW_API_KEY")
+    if v:
+        return v.strip()
+    try:
+        with open("key_sf.txt", encoding="utf-8") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        raise RuntimeError(
+            "找不到 SILICONFLOW_API_KEY。\n"
+            "  本地：建个 key_sf.txt\n"
+            "  服务器：docker run 时带 --env-file .env"
+        )
+
+sf_key = _sf_key()
 TOP_K = 5
 
 

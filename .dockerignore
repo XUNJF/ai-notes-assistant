@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.git/
+key.txt
+key_sf.txt
+*.db
+data/
+index.json
+说明.md
+.env
