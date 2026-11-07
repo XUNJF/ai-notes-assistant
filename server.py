@@ -20,6 +20,21 @@ db.create_table()
 
 app = FastAPI()
 
+ACCESS_KEY = os.environ.get("APP_ACCESS_KEY","")
+
+@app.middleware("http")
+async def check_access(request: Request, call_next):
+    if not ACCESS_KEY:
+        return await call_next(request)
+    supplied = request.query_params.get("key") or request.cookies.get("access_key")
+    if supplied != ACCESS_KEY:
+        return JSONResponse({"detail":"需要访问口令"}, status_code=401)
+    response = await call_next(request)
+    if request.query_params.get("key") == ACCESS_KEY:
+        response.set_cookie("access_key", ACCESS_KEY, httponly=True, max_age=7 * 86400)
+    return response
+
+
 
 class ChatRequest(BaseModel):
     message: str
