@@ -125,21 +125,29 @@ col.upsert(ids=[...], documents=[...], embeddings=[...], metadatas=[...])
 
 ```bash
 pip install -r requirements.txt
+```
 
-# 需要两个环境变量（或放在 key.txt / key_sf.txt）
+需要两个密钥，通过环境变量传（也可以用 `key.txt` / `key_sf.txt` 文件，代码会回退读取）：
+
+```bash
+# Linux / macOS
 export DEEPSEEK_API_KEY=sk-xxx
 export SILICONFLOW_API_KEY=sk-yyy
 
+# Windows PowerShell
+$env:DEEPSEEK_API_KEY="sk-xxx"
+$env:SILICONFLOW_API_KEY="sk-yyy"
+```
+
+启动：
+
+```bash
 python -m uvicorn server:app --reload
 ```
 
 打开 `http://127.0.0.1:8000`
 
-**首次使用需要建索引**（把笔记切分、转向量、写入 Chroma）：
-
-```bash
-python build_chroma.py
-```
+**关于索引**：仓库里已经包含构建好的 `chroma_db/`（242 条向量），直接就能用。`build_chroma.py` 是重建索引用的，它需要原始笔记文件——那些是个人的，不在本仓库里，所以**这个脚本在本仓库无法直接运行**，保留它只是为了说明索引用什么方式构建。
 
 ---
 
@@ -153,12 +161,18 @@ docker run -d --name notes --restart unless-stopped \
 
 `--restart unless-stopped` 是必须的——否则服务器一重启服务就没了。
 
-密钥通过 `.env` 注入，不进代码库：
+密钥通过 `.env` 注入，不进代码库（记得 `chmod 600 .env`）：
 
 ```
 DEEPSEEK_API_KEY=sk-xxx
 SILICONFLOW_API_KEY=sk-yyy
 APP_ACCESS_KEY=你的访问口令
+```
+
+**国内服务器的一个坑**：`docker.io` 通常不可达，`docker build` 拉基础镜像会超时。把 Dockerfile 第一行换成国内镜像源：
+
+```dockerfile
+FROM docker.m.daocloud.io/library/python:3.12-slim
 ```
 
 ---
@@ -179,7 +193,7 @@ APP_ACCESS_KEY=你的访问口令
 ## 项目结构
 
 ```
-day46-47/
+.
 ├── multi_agent.py        # LangGraph 多智能体图（主管+三个专员）
 ├── rag_agent.py          # 单 Agent 版本（较早的实现，保留作对照）
 ├── search_chroma.py      # 向量检索：query + 拼装上下文
@@ -205,4 +219,4 @@ day46-47/
 
 ## 说明
 
-这个项目在一个 21 周自学计划的过程中写成（笔记助手在我的学习仓库 `python-practice` 的 `day46-47` 目录里）。它不是教程示例，是每天实际用、边用边改出来的。
+这个项目在我 21 周转向 AI 应用开发的学习过程中写成，最初是学习仓库 `python-practice` 里的一个目录，代码是每天实际用、边用边改出来的，不是教程示例。后来为了便于展示单独抽成了这个仓库（保留了提交历史）。
