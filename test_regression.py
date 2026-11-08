@@ -1,4 +1,4 @@
-# test.py
+# test_regression.py —— 回归清单：四类问句各跑一次，人工核对结果
 import multi_agent as M
 
 cfg = {"configurable": {"thread_id": "regress-1"}}
