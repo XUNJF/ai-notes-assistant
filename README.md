@@ -169,11 +169,13 @@ SILICONFLOW_API_KEY=sk-yyy
 APP_ACCESS_KEY=你的访问口令
 ```
 
-**国内服务器的一个坑**：`docker.io` 通常不可达，`docker build` 拉基础镜像会超时。把 Dockerfile 第一行换成国内镜像源：
+**国内服务器的一个坑**：`docker.io` 通常不可达，`docker build` 拉基础镜像会超时。所以 Dockerfile 第一行直接指向国内镜像源：
 
 ```dockerfile
 FROM docker.m.daocloud.io/library/python:3.12-slim
 ```
+
+（在能访问 Docker Hub 的环境里，换回 `python:3.12-slim` 也一样。）
 
 ---
 
@@ -195,15 +197,20 @@ FROM docker.m.daocloud.io/library/python:3.12-slim
 ```
 .
 ├── multi_agent.py        # LangGraph 多智能体图（主管+三个专员）
-├── rag_agent.py          # 单 Agent 版本（较早的实现，保留作对照）
+├── rag_agent.py          # 单 Agent 版本（较早的实现，保留作演进对照）
 ├── search_chroma.py      # 向量检索：query + 拼装上下文
 ├── build_chroma.py       # 建索引：切分笔记 → 转向量 → 写入 Chroma
 ├── db.py                 # 会话历史存取（SQLite，参数化查询）
 ├── server.py             # FastAPI 接口 + 访问口令中间件
 ├── index.html            # 前端（流式解析 + 步骤显示 + 历史抽屉）
+├── test_regression.py    # 回归测试：四类问句各跑一次，人工核对结果
 ├── Dockerfile            # 容器化
 └── chroma_db/            # 向量库（已纳入版本管理，3MB）
 ```
+
+**关于 `rag_agent.py`**：它是多智能体之前的单 Agent 版本（判断和回答都在一张图里）。保留它是因为多智能体实际上是它的演进结果，对比着看能说明「为什么要拆角色」。
+
+**关于 `test_regression.py`**：不是单元测试，是**人工回归清单**——跑四句话覆盖四条路径（闲聊 / 检索 / 计算 / 依赖摘要），每次改完压缩或路由相关的代码都跑一遍。之所以没写成 pytest，是因为要确认的是「模型行为」而不是「函数返回值」，断言不好写；但这个习惯本身救过我好几次。
 
 **接口：**
 
