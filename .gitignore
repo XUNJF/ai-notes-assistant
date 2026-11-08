@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+
+# 虚拟环境
+venv/
+.venv/
+
+# 编辑器
+.vscode/
+.idea/
+
+# ⚠️ 密钥，绝不提交
+key.txt
+key_sf.txt
+*.key
+.env
+
+# 运行产生的数据
+history.json
+history.db
+*.db
+*.db-wal
+*.db-shm
+data/
+index.json
