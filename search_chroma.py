@@ -1,6 +1,7 @@
 import requests
 import chromadb
 import os
+import time 
 
 def _sf_key():
     v = os.environ.get("SILICONFLOW_API_KEY")
@@ -20,21 +21,30 @@ sf_key = _sf_key()
 TOP_K = 5
 
 
-def embed(texts):    # 把一批文字转成向量
-    r = requests.post(
-        "https://api.siliconflow.cn/v1/embeddings",
-        headers={"Authorization": f"Bearer {sf_key}", "Content-Type": "application/json"},
-        json={"model": "BAAI/bge-m3", "input": texts},
-        timeout=60,
-    )
-    d = r.json()
-    if d.get("data") is None:
-        raise RuntimeError(f"embedding出错：{d}")
-
-    out = [None] * len(texts)
-    for item in d["data"]:
-        out[item["index"]] = item["embedding"]
-    return out
+def embed(texts):
+    last_err = None
+    for attempt in range(3):
+        try:
+            r = requests.post(
+                "https://api.siliconflow.cn/v1/embeddings",
+                headers={"Authorization": f"Bearer {sf_key}", "Content-Type": "application/json"},
+                json={"model": "BAAI/bge-m3", "input": texts},
+                timeout=60,
+            )
+            if r.status_code != 200:
+                raise RuntimeError(f"embedding 接口返回{r.status_code}:{r.text[:200]}")
+            d = r.json()
+            if d.get("data") is None:
+                raise RuntimeError(f"embedding 出错:{d}")
+            out = [None] * len(texts)
+            for item in d["data"]:
+                out[item["index"]]=item["embedding"]
+            return out
+        except Exception as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"embedding 连续失败 3 次：{last_err}")
 
 
 client = chromadb.PersistentClient(path="./chroma_db")

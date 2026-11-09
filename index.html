@@ -261,6 +261,7 @@ async function send() {
   let started = false;
   let metaInfo = null;
   let lastRender = 0;
+  let errText = null;
 
   try {
     const res = await fetch("/chat/stream", {
@@ -312,16 +313,22 @@ async function send() {
 
         } else if (msg.type === "meta") {
           metaInfo = msg;
+        } else if (msg.type === "error") {
+          errText = msg.text;
         }
       }
     }
 
-    // 收尾：补最后一次渲染
-    answerEl.innerHTML = (typeof marked !== "undefined")
-        ? marked.parse(full)
-        : esc(full);
-    if (!started) {
-      answerEl.innerHTML = "（没有收到回答）";
+    // 收尾：有错误优先显示错误，否则补最后一次渲染
+    if (errText) {
+      answerEl.innerHTML = '<span style="color:#b03a2e">出错了：' + esc(errText) + '</span>';
+    } else {
+      answerEl.innerHTML = (typeof marked !== "undefined")
+          ? marked.parse(full)
+          : esc(full);
+      if (!started) {
+        answerEl.innerHTML = "（没有收到回答）";
+      }
     }
 
     if (metaInfo && metaInfo.sources && metaInfo.sources.length) {

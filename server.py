@@ -69,31 +69,45 @@ def chat_stream(req:ChatRequest):
         found_sources = []
         answer_parts = []
         config = {"configurable":{"thread_id":req.thread_id}}
-        for item in multi_agent.graph.stream(
-            {"question":msg}, config=config, stream_mode=["updates","messages"]
-        ):
-            mode, data = item
-            if mode == "updates":
-                for node, update in data.items():
-                    if node in ("writer","receive"):
-                        continue
-                    if node == "researcher":
-                        found_sources[:] = update.get("sources",[])
-                    yield json.dumps(
-                        {"type":"step","text":describe_step(node, update)},
-                        ensure_ascii=False,
-                    ) + "\n"
-            else:
-                chunk, meta = data
-                if meta.get("langgraph_node") == "writer" and chunk.content:
-                    answer_parts.append(chunk.content)
-                    yield json.dumps(
-                        {"type":"text","content":chunk.content},
-                        ensure_ascii=False,
-                    ) + "\n"
-        db.save(msg, "".join(answer_parts), found_sources, req.thread_id)
+        try:
+            for item in multi_agent.graph.stream(
+                {"question":msg}, config=config, stream_mode=["updates","messages"]
+            ):
+                mode, data = item
+                if mode == "updates":
+                    for node, update in data.items():
+                        if node in ("writer", "receive"):
+                            continue
+                        if node == "researcher":
+                            found_sources[:] = update.get("sources",[])
+                            yield json.dumps(
+                                {"type":"step","text":describe_step(node, update)},
+                                ensure_ascii=False,
+                            ) + "\n"
+                else:
+                    chunk, meta = data
+                    if meta.get("langgraph_node") == "writer" and chunk.content:
+                        answer_parts.append(chunk.content)
+                        yield json.dumps(
+                            {"type":"text","content":chunk.content},
+                            ensure_ascii=False,
+                        ) + "\n"
+        except Exception as e:
+            yield json.dumps(
+                {"type":"error","text":f"{type(e).__name__}: {e}"},
+                ensure_ascii=False,
+            )+"\n"
+            return
+        try:
+            db.save(msg,"".join(answer_parts),found_sources, req.thread_id)
+        except Exception as e:
+            yield json.dumps(
+                {"type":"error","text":f"保存历史失败：{type(e).__name__}: {e}"},
+                ensure_ascii=False,
+            )+"\n"
         yield json.dumps(
-            {"type":"meta", "sources":found_sources},ensure_ascii=False)+"\n"
+            {"type":"meta","sources":found_sources},ensure_ascii=False
+        )+"\n"
     return StreamingResponse(gen(), media_type="application/x-ndjson")
 
 @app.get("/sessions")
