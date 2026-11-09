@@ -6,3 +6,4 @@ langchain-deepseek
 langgraph-checkpoint-sqlite
 requests
 chromadb
+pyyaml

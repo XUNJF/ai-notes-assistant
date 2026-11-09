@@ -4,6 +4,7 @@ from langchain_deepseek import ChatDeepSeek
 from langgraph.graph import StateGraph,START,END,add_messages
 
 from rag_agent import _read_key
+import prompt_loader as P
 from search_chroma import search_notes,build_context
 import ast 
 import operator
@@ -54,16 +55,6 @@ class State(TypedDict):
     calc_result:str
     summary: str
 
-SUPERVISOR_PROMPT = """你是主管，手下有三个专员：
-- research   研究员：翻学习笔记，找原始资料
-- calc       计算员：做算术题（加减乘除、乘方）
-- write      撰稿人：根据已有信息写答案
-
-看当前进度，决定下一步派谁。只回一个词。
-
-什么时候派 research：问题跟他的学习内容有关，而且还没查过资料
-什么时候派 calc：    问题是纯算术（算个数、四则运算、乘方之类）
-什么时候派 write：   资料/计算结果已经有了，或者这问题什么都不用查（闲聊、问"我是谁"）"""
 
 def receive(state):
     return {
@@ -87,13 +78,7 @@ def compress(state):
     prompt = (f"【已有摘要】\n{before}\n\n【新的对话】\n{raw}\n\n"
               if before else f"【对话】\n{raw}\n\n")
     r = model.invoke([
-        {"role":"system","content":
-        "把下面这段对话压缩成一段简短摘要。\n"
-         "【必须保留】\n"
-         "1. 用户的个人信息：姓名、身份、偏好、习惯、约定过的事（一个字都不能丢）\n"
-         "2. 用户问了什么、结论是什么\n"
-         "3. 关键概念\n"
-         "不要评论，不要分段，200 字以内。"},
+        {"role":"system","content":P.get("compress")},
         {"role":"user","content":prompt},
     ])
     return {
@@ -107,7 +92,7 @@ def supervisor(state):
     status = (f"当前进度：资料={'有' if state.get('notes') else '没有'},"
               f"计算结果={'有' if state.get('calc_result') else '没有'},"
               f"答案={'有' if state.get('answer') else '没有'}")
-    msgs = [{"role":"system","content":SUPERVISOR_PROMPT}]
+    msgs = [{"role":"system","content":P.get("supervisor")}]
     if state.get("summary"):
         msgs.append({"role":"system",
                      "content":f"【之前聊过的内容摘要】\n{state['summary']}"})
@@ -124,7 +109,7 @@ def researcher(state):
 
 def calculator(state):
     expr = model.invoke([
-        {"role":"system","content":"把用户的算术题转成一个纯算式，只输出算式，不要等号、不要解释。用 + - * / ** 表示。"},
+        {"role":"system","content":P.get("calc_parse")},
         {"role":"user","content":state['question']},
     ]).content.strip().strip("`")
     try:
@@ -139,15 +124,11 @@ def writer(state):
     notes = state.get("notes") or ""
     calc = state.get("calc_result") or ""
     if calc:
-        system = f"把计算结果告诉用户，简短说明即可。\n【计算结果】{calc}"
+        system = P.get("write_calc").format(calc=calc)
     elif notes:
-        system = ("只根据下面提供的【资料】回答；资料里没有就说「资料里没有提到这个」。\n\n"
-                f"【资料】\n{notes}")
+        system = P.get("write_notes").format(notes=notes)
     else:
-        system = ("根据前面的对话自然回应。\n"
-                  "如果这是个技术问题，而你没有拿到相关资料，"
-                  "就明确说「笔记里没有相关内容」——不要凭自己的知识编。\n"
-                  "闲聊就简短回应。")
+        system = P.get("write_chat")
     msgs = [{"role":"system","content":system}]
     if state.get("summary"):
         msgs.append({"role":"system","content": f"【之前聊过的内容摘要】\n{state['summary']}"})
