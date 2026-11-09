@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.aliyun.com
 # 再拷代码和数据
 COPY *.py ./
 COPY index.html ./
+COPY prompts.yaml ./
 COPY chroma_db ./chroma_db
 
 # 记忆数据库放这儿（容器里自动建）
