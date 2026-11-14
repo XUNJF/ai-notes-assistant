@@ -63,7 +63,7 @@ def main():
             ok_route += 1
         if expect == "research":
             need_hit += 1
-            hit = expect_src in (out.get("source") or [])
+            hit = expect_src in (out.get("sources") or [])
             if hit:
                 ok_hit += 1
             mark = "✓" if hit else "✗"
