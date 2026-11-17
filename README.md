@@ -224,6 +224,31 @@ FROM docker.m.daocloud.io/library/python:3.12-slim
 最后把两天的内容合起来答 —— 这个「先搜再读」的策略不是我写死的，
 是它自己根据工具说明决定的。
 
+### 远程部署
+
+除了本地 stdio，还支持 HTTP 模式，带 Bearer token 鉴权：
+
+```bash
+MCP_TOKEN=<随机串> python notes_mcp.py --http
+curl -H "Authorization: Bearer <token>" https://<域名>/mcp
+```
+
+生产环境用 Cloudflare Tunnel 暴露，不需要开服务器公网端口：
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:9000
+```
+
+**踩到的三个坑：**
+
+1. **`Invalid Host header`** —— MCP 自带 DNS 重绑定防护，只允许 localhost。
+   隧道域名不在白名单里会被拒。关掉 `enable_dns_rebinding_protection`
+   可以放行，此时真正的防线是 Bearer token。
+2. **`MCP_TOKEN` 改了不生效** —— `--env-file` 只在容器启动时读一次，
+   改完 `.env` 必须 `docker restart`。
+3. **隧道域名每次重启都变** —— quick tunnel 的固有行为。
+   想固定域名要用 named tunnel，那需要自有域名。
+
 ### 两个必须处理的坑
 
 **1. 工作目录**
