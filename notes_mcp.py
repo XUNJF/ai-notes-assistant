@@ -8,6 +8,7 @@ MCP server：把「查我的学习笔记」这个能力暴露给任意支持 MCP
 
 import logging
 import os
+import sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE)
@@ -19,9 +20,12 @@ import jieba
 jieba.setLogLevel(logging.ERROR)
 
 from mcp.server.mcpserver import MCPServer
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 from search_chroma import search_notes as _search
 
-NOTES_DIR =r"D:\code\学习笔记"
+
+NOTES_DIR = os.environ.get("NOTES_DIR", r"D:\code\学习笔记")
 mcp = MCPServer("notes")
 
 
@@ -53,5 +57,25 @@ def read_note(filename:str)->str:
     with open(real,encoding="utf-8")as f:
         return f.read()
 
+MCP_TOKEN = os.environ.get("MCP_TOKEN","").strip()
+
+class BearerAuth(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.url.path.startswith("/mcp"):
+            if request.headers.get("authorization","") != f"Bearer {MCP_TOKEN}":
+                return JSONResponse({"error":"unauthorized"}, status_code=401)
+        return await call_next(request)
+
+
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    if "--http" in sys.argv:
+        if not MCP_TOKEN:
+            raise SystemExit("远程模式必须先设置MCP_TOJEN环境变量，否则谁都能查你的笔记")
+        import uvicorn
+        app = mcp.streamable_http_app()
+        app.add_middleware(BearerAuth)
+        uvicorn.run(app, host = "0.0.0.0",
+                    port = int(os.environ.get("MCP_PROT","9000")),
+                    log_level = "warning")
+    else:
+        mcp.run(transport = "stdio")
