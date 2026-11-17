@@ -205,6 +205,57 @@ FROM docker.m.daocloud.io/library/python:3.12-slim
 `print(bot.chat("什么是变量？"))` 出现了四次，字面与问题几乎一致但语义无关。
 这是「字面相似 ≠ 语义相关」的典型例子。
 
+## MCP 接入
+
+`notes_mcp.py` 是一个 MCP（Model Context Protocol）server，
+把检索能力暴露给任意支持 MCP 的客户端（Claude Desktop、Cursor 等）。
+
+这样 AI 客户端可以**自己判断**「先搜再读」，不需要我提供界面，
+也不需要它知道我的接口长什么样 —— 它只看得见「有哪些工具可用」。
+
+| 工具 | 作用 |
+|---|---|
+| `list_notes` | 列出知识库里的笔记文件 |
+| `search_notes` | 混合检索，返回最相关的片段 |
+| `read_note` | 读取某份笔记的全文 |
+
+实测：在 Claude Desktop 里问「我笔记里 RAG 是怎么写的」，
+它会先 `search_notes` 定位到第 17、18 天，再 `read_note` 读全文，
+最后把两天的内容合起来答 —— 这个「先搜再读」的策略不是我写死的，
+是它自己根据工具说明决定的。
+
+### 两个必须处理的坑
+
+**1. 工作目录**
+`search_chroma` 用相对路径找 `chroma_db` 和 `key_sf.txt`。
+而 MCP server 是被客户端启动的，启动目录不可控（可能是 `C:\Windows\System32`）。
+所以脚本开头要 `os.chdir(脚本所在目录)`。
+
+**2. stdout 污染**
+MCP over stdio 是**用标准输入输出传协议报文**的。
+任何库往 stdout 打一行日志，协议就废了，客户端会直接断开。
+jieba 首次加载字典时会打日志，必须 `jieba.setLogLevel(logging.ERROR)` 压掉。
+
+这个坑很隐蔽：报错不会说「你打了日志」，而是「连接断开」或者干脆没反应。
+
+### 配置
+
+`claude_desktop_config.json`：
+
+```json
+{
+  "mcpServers": {
+    "notes": {
+      "command": "<venv 里的 python.exe 绝对路径>",
+      "args": ["<项目目录>/notes_mcp.py"]
+    }
+  }
+}
+```
+
+路径里的反斜杠要写成 `\\`（JSON 转义），或者直接用正斜杠。
+改完配置要**完全退出**客户端再重开 —— 只关窗口不算。
+
 ## 已知限制
 
 **说清楚比藏着好：**
