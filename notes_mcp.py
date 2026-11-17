@@ -22,6 +22,7 @@ jieba.setLogLevel(logging.ERROR)
 from mcp.server.mcpserver import MCPServer
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from mcp.server.transport_security import TransportSecuritySettings
 from search_chroma import search_notes as _search
 
 
@@ -72,7 +73,10 @@ if __name__ == "__main__":
         if not MCP_TOKEN:
             raise SystemExit("远程模式必须先设置MCP_TOJEN环境变量，否则谁都能查你的笔记")
         import uvicorn
-        app = mcp.streamable_http_app()
+        app = mcp.streamable_http_app(
+            transport_security=TransportSecuritySettings(
+                enable_dns_rebinding_protection=False
+            ))
         app.add_middleware(BearerAuth)
         uvicorn.run(app, host = "0.0.0.0",
                     port = int(os.environ.get("MCP_PROT","9000")),
